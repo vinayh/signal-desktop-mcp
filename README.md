@@ -1,34 +1,26 @@
-# Signal MCP Server (TypeScript)
+# Signal MCP Server
 
-MCP Server for retrieving Signal messages using Node.js, packaged in MCPB format.
+An MCP (Model Context Protocol) server for accessing Signal Desktop messages. This TypeScript/Node.js implementation allows AI assistants to read your Signal chat history.
 
-## Overview
+## Features
 
-This is the TypeScript/Node.js port of the Signal MCP Server. It enables AI agents and tools to access Signal Desktop chat messages via the Model Context Protocol (MCP).
+- List all Signal chats with contact names and message counts
+- Retrieve messages from specific chats with pagination
+- Search for text within chat messages
+- Prompt templates for chat analysis
 
 ## Prerequisites
 
 - Node.js 18 or higher
-- Signal Desktop installed with existing message database
-- Windows, macOS, or Linux operating system
+- Signal Desktop installed with existing message history
+- macOS, Windows, or Linux
 
 ## Installation
 
-### Using MCPB (Recommended)
-
-1. Package the extension:
+1. Clone the repository and install dependencies:
    ```bash
-   npm install -g @anthropic-ai/mcpb
-   mcpb pack ./ts
-   ```
-
-2. Install the generated `.mcpb` file in Claude Desktop or other MCP-compatible clients.
-
-### Manual Installation
-
-1. Install dependencies:
-   ```bash
-   cd ts
+   git clone https://github.com/anthropics/signal-mcp-server.git
+   cd signal-mcp-server
    npm install
    ```
 
@@ -38,73 +30,109 @@ This is the TypeScript/Node.js port of the Signal MCP Server. It enables AI agen
    ```
 
 3. Add to your Claude Desktop configuration (`claude_desktop_config.json`):
+
+   **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
    ```json
    {
      "mcpServers": {
        "signal-mcp-server": {
          "command": "node",
-         "args": ["/path/to/signal-mcp-server/ts/dist/index.js"]
+         "args": ["/path/to/signal-mcp-server/dist/index.js"]
        }
      }
    }
    ```
 
+4. Restart Claude Desktop.
+
 ## Configuration
 
-### Environment Variables
+### Environment Variables (Optional)
 
-- `SIGNAL_SOURCE_DIR`: Path to Signal Desktop data directory (auto-detected if not set)
-- `SIGNAL_PASSWORD`: Database password (if encrypted)
-- `SIGNAL_KEY`: Encryption key (if encrypted)
+- `SIGNAL_SOURCE_DIR`: Custom path to Signal Desktop data directory
+- `SIGNAL_KEY`: Encryption key (auto-detected on macOS via Keychain)
 
 ### Signal Data Directory Locations
 
 The server automatically detects your Signal data directory:
 
-- **Windows**: `%APPDATA%\Signal`
-- **macOS**: `~/Library/Application Support/Signal`
-- **Linux**: `~/.config/Signal` (or Flatpak: `~/.var/app/org.signal.Signal/config/Signal`)
+| OS | Path |
+|----|------|
+| macOS | `~/Library/Application Support/Signal` |
+| Windows | `%APPDATA%\Signal` |
+| Linux | `~/.config/Signal` |
+| Linux (Flatpak) | `~/.var/app/org.signal.Signal/config/Signal` |
+
+### Encryption Key
+
+Signal Desktop encrypts its database using SQLCipher. The server handles this automatically:
+
+- **macOS**: Retrieves the key from the system Keychain ("Signal Safe Storage")
+- **Other platforms**: Reads from `config.json` in the Signal data directory
+
+If automatic detection fails, you can provide the key via the `SIGNAL_KEY` environment variable.
 
 ## Available Tools
 
-### 1. `signal_list_chats`
+### `signal_list_chats`
 
 Lists all Signal chats with their details.
 
 **Parameters:**
-- `source_dir` (optional): Custom Signal data directory path
-- `password` (optional): Database password
-- `key` (optional): Encryption key
-- `chats` (optional): Comma-separated list of chat IDs to filter
-- `include_empty` (optional): Include chats with no messages (default: false)
-- `include_disappearing` (optional): Include disappearing messages (default: true)
+- `include_empty` (boolean): Include chats with no messages (default: false)
 
-### 2. `signal_get_chat_messages`
+**Example response:**
+```json
+[
+  {
+    "id": "abc123",
+    "name": "John Doe",
+    "number": "+1234567890",
+    "type": "private",
+    "totalMessages": 150
+  }
+]
+```
 
-Retrieves messages from a specific chat by name.
+### `signal_get_chat_messages`
 
-**Parameters:**
-- `chat_name` (required): Name of the chat contact
-- `limit` (optional): Maximum number of messages to return
-- `offset` (optional): Number of messages to skip (for pagination)
-- Other parameters same as `signal_list_chats`
-
-### 3. `signal_search_chat`
-
-Search for specific text within Signal chat messages.
+Retrieves messages from a specific chat.
 
 **Parameters:**
-- `chat_name` (required): Name of the chat to search within
-- `query` (required): Text to search for in message bodies
-- `limit` (optional): Maximum number of matching messages to return
-- Other parameters same as `signal_list_chats`
+- `chat_name` (string, required): Name of the contact or group
+- `limit` (number): Maximum messages to return
+- `offset` (number): Skip this many messages (for pagination)
+
+**Example response:**
+```json
+[
+  {
+    "date": "2024-01-15T10:30:00.000Z",
+    "sender": "John Doe",
+    "body": "Hello!",
+    "reactions": [],
+    "attachments": ""
+  }
+]
+```
+
+### `signal_search_chat`
+
+Search for text within a chat's messages.
+
+**Parameters:**
+- `chat_name` (string, required): Name of the contact or group
+- `query` (string, required): Text to search for
+- `limit` (number): Maximum results to return
 
 ## Available Prompts
 
-1. `signal_summarize_chat_prompt` - Generate a summary of recent messages
-2. `signal_chat_topic_prompt` - Analyze discussion topics in a chat
-3. `signal_chat_sentiment_prompt` - Analyze message sentiment
-4. `signal_search_chat_prompt` - Search for specific text in a chat
+- `signal_summarize_chat_prompt` - Summarize recent messages in a chat
+- `signal_chat_topic_prompt` - Analyze discussion topics
+- `signal_chat_sentiment_prompt` - Analyze message sentiment
+- `signal_search_chat_prompt` - Search for specific content
 
 ## Development
 
@@ -119,20 +147,20 @@ npm run build
 npm run dev
 ```
 
-## Limitations
+## Important Notes
 
-- Signal Desktop must be closed when accessing the database
-- SQLCipher encrypted databases may require additional setup (better-sqlite3 doesn't natively support SQLCipher)
-- For encrypted databases on some systems, you may need to provide the encryption key
+- **Signal Desktop must be closed** when accessing the database to avoid conflicts
+- This server reads messages locally; no data is sent externally
+- Uses Signal's official `@signalapp/better-sqlite3` fork with SQLCipher support
 
 ## Security & Privacy
 
-**Important**: This server provides access to your personal Signal messages. Please:
+This server provides access to your personal Signal messages. Please:
 
 - Only run this server locally
 - Never expose it to the internet
-- Be cautious about which AI agents you grant access
-- Consider the privacy of others in your conversations
+- Be mindful of the privacy of others in your conversations
+- Review which AI tools you grant access to your messages
 
 ## License
 

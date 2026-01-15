@@ -1,4 +1,12 @@
-python_impl_OLD
+# Python implementation (archived)
+python_impl_OLD/
+.venv/
+
+# macOS
+.DS_Store
+
+# Build output
+dist/
 
 # Logs
 logs

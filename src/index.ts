@@ -24,20 +24,6 @@ const server = new Server(
   }
 );
 
-// Initialize Signal database connection (lazy-loaded on first use)
-let signalDb: SignalDatabase | null = null;
-
-function getSignalDb(): SignalDatabase {
-  if (!signalDb) {
-    signalDb = new SignalDatabase(
-      process.env.SIGNAL_SOURCE_DIR,
-      process.env.SIGNAL_PASSWORD,
-      process.env.SIGNAL_KEY
-    );
-  }
-  return signalDb;
-}
-
 // Define the tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
