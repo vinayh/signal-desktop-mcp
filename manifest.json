@@ -1,0 +1,93 @@
+{
+  "manifest_version": "0.3",
+  "name": "signal-mcp-server",
+  "version": "0.1.0",
+  "display_name": "Signal MCP Server",
+  "description": "MCP Server for retrieving Signal messages from Signal Desktop",
+  "long_description": "This MCP server enables AI agents and tools to access Signal Desktop chat messages via the Model Context Protocol (MCP). It supports listing chats, retrieving messages, and searching within conversations.",
+  "author": {
+    "name": "Vinay Hiremath",
+    "url": "https://github.com/vinayh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vinayh/signal-mcp-server"
+  },
+  "license": "MIT",
+  "keywords": ["signal", "messaging", "chat", "mcp"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "SIGNAL_SOURCE_DIR": "${user_config.source_dir}",
+        "SIGNAL_PASSWORD": "${user_config.password}",
+        "SIGNAL_KEY": "${user_config.key}"
+      }
+    }
+  },
+  "user_config": {
+    "source_dir": {
+      "type": "directory",
+      "title": "Signal Data Directory",
+      "description": "Path to the Signal Desktop data directory. Leave empty to use the default location for your OS.",
+      "required": false
+    },
+    "password": {
+      "type": "string",
+      "title": "Database Password",
+      "description": "Password for encrypted Signal database (if applicable)",
+      "sensitive": true,
+      "required": false
+    },
+    "key": {
+      "type": "string",
+      "title": "Encryption Key",
+      "description": "Encryption key for Signal database (if applicable)",
+      "sensitive": true,
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "signal_list_chats",
+      "description": "List all Signal chats with their details including contact names, numbers, and message counts"
+    },
+    {
+      "name": "signal_get_chat_messages",
+      "description": "Retrieve messages from a specific Signal chat by contact name with pagination support"
+    },
+    {
+      "name": "signal_search_chat",
+      "description": "Search for specific text within a Signal chat's messages"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "signal_summarize_chat_prompt",
+      "description": "Generate a summary prompt for recent messages in a specific chat"
+    },
+    {
+      "name": "signal_chat_topic_prompt",
+      "description": "Generate a prompt to analyze discussion topics in a chat"
+    },
+    {
+      "name": "signal_chat_sentiment_prompt",
+      "description": "Generate a prompt to analyze message sentiment in a chat"
+    },
+    {
+      "name": "signal_search_chat_prompt",
+      "description": "Generate a search prompt for finding specific text in a chat"
+    }
+  ],
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18"
+    }
+  },
+  "privacy_policies": []
+}

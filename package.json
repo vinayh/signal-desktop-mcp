@@ -1,0 +1,36 @@
+{
+  "name": "signal-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP Server for retrieving Signal messages from Signal Desktop",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "mcp",
+    "signal",
+    "messaging",
+    "model-context-protocol"
+  ],
+  "author": {
+    "name": "Vinay Hiremath"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@signalapp/better-sqlite3": "^9.0.13"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
