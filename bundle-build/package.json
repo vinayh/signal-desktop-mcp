@@ -1,8 +1,7 @@
 {
-  "name": "signal-desktop-mcp",
+  "name": "signal-desktop-mcp-bundle",
   "version": "0.1.0",
   "type": "module",
-  "main": "server/index.js",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@signalapp/better-sqlite3": "^9.0.13"

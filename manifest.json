@@ -1,31 +1,38 @@
 {
-  "manifest_version": "0.2",
+  "manifest_version": "0.3",
   "name": "signal-desktop-mcp",
-  "display_name": "Signal Desktop MCP Server",
+  "display_name": "Signal Desktop MCP",
   "version": "0.1.0",
-  "description": "MCP server for retrieving Signal messages from the Signal Desktop client",
-  "long_description": "This MCP server enables AI agents and tools to access Signal Desktop chat messages via the Model Context Protocol (MCP). It supports listing chats, retrieving messages, and searching within conversations.",
+  "description": "Access your Signal Desktop messages locally via MCP",
+  "long_description": "This MCP server enables Claude to read your Signal Desktop messages directly from your local database. It supports listing chats, retrieving messages with pagination, and searching within conversations. All data stays on your machine - no external API calls are made.\n\n**Features:**\n- List all Signal chats with message counts\n- Retrieve messages from specific conversations\n- Search for text within chats\n- Full support for group chats and individual conversations\n\n**Requirements:**\n- Signal Desktop must be installed\n- Close Signal Desktop before accessing messages (database lock)\n- macOS, Windows, or Linux",
   "author": {
     "name": "Vinay Hiremath",
     "url": "https://vinayh.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/vinayh/signal-mcp-server"
+    "url": "https://github.com/vinayh/signal-desktop-mcp"
   },
-  "license": "MIT",
   "homepage": "https://github.com/vinayh/signal-desktop-mcp",
-  "keywords": ["signal", "messaging", "chat", "mcp", "local", "desktop"],
+  "license": "MIT",
+  "keywords": ["signal", "messaging", "chat", "mcp", "local", "desktop", "privacy"],
   "server": {
     "type": "node",
-    "entry_point": "dist/index.js",
+    "entry_point": "server/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/index.js"],
+      "args": ["${__dirname}/server/index.js"],
       "env": {
         "SIGNAL_SOURCE_DIR": "${user_config.source_dir}",
-        "SIGNAL_PASSWORD": "${user_config.password}",
         "SIGNAL_KEY": "${user_config.key}"
+      },
+      "platform_overrides": {
+        "win32": {
+          "command": "node"
+        },
+        "linux": {
+          "command": "node"
+        }
       }
     }
   },
@@ -33,20 +40,13 @@
     "source_dir": {
       "type": "directory",
       "title": "Signal Data Directory",
-      "description": "Optional: Path to the Signal Desktop data directory. Leave empty to use the default location for your OS.",
-      "required": false
-    },
-    "password": {
-      "type": "string",
-      "title": "Database Password",
-      "description": "Optional: Password for encrypted Signal database, if applicable.",
-      "sensitive": true,
+      "description": "Path to Signal Desktop data directory. Leave empty to use the default location for your OS (recommended for most users).",
       "required": false
     },
     "key": {
       "type": "string",
       "title": "Encryption Key",
-      "description": "Optional: Encryption key for Signal database, if applicable.",
+      "description": "Database encryption key (hex format). Leave empty to auto-detect from Signal's config. Only needed if auto-detection fails.",
       "sensitive": true,
       "required": false
     }
@@ -54,11 +54,11 @@
   "tools": [
     {
       "name": "signal_list_chats",
-      "description": "List all Signal chats with their details including contact names, numbers, and message counts"
+      "description": "List all Signal chats with contact names, phone numbers, and message counts"
     },
     {
       "name": "signal_get_chat_messages",
-      "description": "Retrieve messages from a specific Signal chat by contact name with pagination support"
+      "description": "Retrieve messages from a specific Signal chat with pagination support"
     },
     {
       "name": "signal_search_chat",
@@ -67,44 +67,29 @@
   ],
   "prompts": [
     {
-      "name": "signal_summarize_chat_prompt",
-      "description": "Generate a summary prompt for recent messages in a specific chat",
-      "arguments": [
-        "chat_name"
-      ],
-      "text": "Summarize the recent messages in the Signal chat named '${chatName}'."
+      "name": "signal_summarize_chat",
+      "description": "Summarize recent messages in a Signal chat",
+      "arguments": ["chat_name"],
+      "text": "Please use the signal_get_chat_messages tool to retrieve recent messages from the Signal chat named '${arguments.chat_name}', then provide a concise summary of the conversation topics, key points, and any action items mentioned."
     },
     {
-      "name": "signal_chat_topic_prompt",
-      "description": "Generate a prompt to analyze discussion topics in a chat",
-      "arguments": [
-        "chat_name"
-      ],
-      "text": "What are the topics of discussion in the Signal chat named '${chatName}'?"
+      "name": "signal_chat_topics",
+      "description": "Analyze discussion topics in a Signal chat",
+      "arguments": ["chat_name"],
+      "text": "Please use the signal_get_chat_messages tool to retrieve messages from the Signal chat named '${arguments.chat_name}', then analyze and list the main topics that have been discussed."
     },
     {
-      "name": "signal_chat_sentiment_prompt",
-      "description": "Generate a prompt to analyze message sentiment in a chat",
-      "arguments": [
-        "chat_name"
-      ],
-      "text": "Analyze the sentiment of messages in the Signal chat named '${chatName}'."
-    },
-    {
-      "name": "signal_search_chat_prompt",
-      "description": "Generate a search prompt for finding specific text in a chat",
-      "arguments": [
-        "chat_name",
-        "query"
-      ],
-      "text": "Search for the text '${query}' in the Signal chat named '${chatName}'."
+      "name": "signal_search_and_summarize",
+      "description": "Search for a topic and summarize relevant messages",
+      "arguments": ["chat_name", "query"],
+      "text": "Please use the signal_search_chat tool to search for '${arguments.query}' in the Signal chat named '${arguments.chat_name}', then summarize the relevant messages and any conclusions or decisions that were made about this topic."
     }
   ],
   "compatibility": {
     "claude_desktop": ">=0.10.0",
     "platforms": ["darwin", "win32", "linux"],
     "runtimes": {
-      "node": ">=18"
+      "node": ">=18.0.0"
     }
   }
 }

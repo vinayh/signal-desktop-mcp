@@ -127,6 +127,14 @@ function getEncryptionKey(sourceDir: string, providedKey?: string): string | nul
   return null;
 }
 
+// Check if a value is a valid path (not an unsubstituted template variable)
+function isValidPath(value: string | undefined): value is string {
+  if (!value) return false;
+  // Check for unsubstituted MCPB template variables like ${user_config.xxx}
+  if (value.startsWith('${') && value.includes('}')) return false;
+  return true;
+}
+
 export class SignalDatabase {
   private db: Database.Database | null = null;
   private sourceDir: string;
@@ -137,7 +145,12 @@ export class SignalDatabase {
     private password?: string,
     private key?: string
   ) {
-    this.sourceDir = sourceDir || process.env.SIGNAL_SOURCE_DIR || getDefaultSignalDir();
+    // Handle MCPB template variables that weren't substituted (user didn't set config)
+    const envSourceDir = process.env.SIGNAL_SOURCE_DIR;
+    const resolvedSourceDir = isValidPath(sourceDir) ? sourceDir :
+                              isValidPath(envSourceDir) ? envSourceDir :
+                              undefined;
+    this.sourceDir = resolvedSourceDir || getDefaultSignalDir();
   }
 
   private open(): Database.Database {
@@ -151,7 +164,12 @@ export class SignalDatabase {
     }
 
     // Get the encryption key from config.json or provided key
-    const encKey = getEncryptionKey(this.sourceDir, this.key || process.env.SIGNAL_KEY);
+    // Handle MCPB template variables that weren't substituted
+    const envKey = process.env.SIGNAL_KEY;
+    const providedKey = isValidPath(this.key) ? this.key :
+                        isValidPath(envKey) ? envKey :
+                        undefined;
+    const encKey = getEncryptionKey(this.sourceDir, providedKey);
     if (!encKey) {
       throw new Error(
         `Could not find Signal encryption key. ` +

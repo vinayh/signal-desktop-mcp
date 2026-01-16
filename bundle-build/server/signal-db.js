@@ -51,7 +51,6 @@ function getEncryptionKey(sourceDir, providedKey) {
         try {
             const config = JSON.parse(readFileSync(configPath, "utf-8"));
             if (config.key) {
-                // Unencrypted key found in config (older Signal versions or non-macOS)
                 return config.key;
             }
             else if (config.encryptedKey && platform() === "darwin") {
@@ -60,32 +59,24 @@ function getEncryptionKey(sourceDir, providedKey) {
                     return decryptKey(password, config.encryptedKey);
                 }
                 catch (e) {
-                    // Keychain access failed - this commonly happens in sandboxed environments (MCPB)
-                    // Provide instructions for manual key extraction
-                    const errorMsg = e instanceof Error ? e.message : String(e);
-                    console.error(`Keychain access failed: ${errorMsg}`);
-                    console.error("");
-                    console.error("To get your Signal encryption key manually, run this in Terminal:");
-                    console.error('  security find-generic-password -ws "Signal Safe Storage"');
-                    console.error("");
-                    console.error("Then provide the key in the extension settings or SIGNAL_KEY environment variable.");
-                    throw new Error(`Cannot access macOS Keychain to retrieve Signal encryption key. ` +
-                        `This often happens in sandboxed environments. ` +
-                        `To fix this, run the following command in Terminal to get your key:\n\n` +
-                        `  security find-generic-password -ws "Signal Safe Storage"\n\n` +
-                        `Then enter the key in the extension's "Encryption Key" setting.`);
+                    console.error("Failed to retrieve password from Keychain or decrypt key:", e);
                 }
             }
         }
-        catch (configError) {
-            // Re-throw if it's our Keychain error with instructions
-            if (configError instanceof Error && configError.message.includes("Keychain")) {
-                throw configError;
-            }
+        catch {
             // Config file may not be readable or may not contain key
         }
     }
     return null;
+}
+// Check if a value is a valid path (not an unsubstituted template variable)
+function isValidPath(value) {
+    if (!value)
+        return false;
+    // Check for unsubstituted MCPB template variables like ${user_config.xxx}
+    if (value.startsWith('${') && value.includes('}'))
+        return false;
+    return true;
 }
 export class SignalDatabase {
     password;
@@ -96,7 +87,12 @@ export class SignalDatabase {
     constructor(sourceDir, password, key) {
         this.password = password;
         this.key = key;
-        this.sourceDir = sourceDir || process.env.SIGNAL_SOURCE_DIR || getDefaultSignalDir();
+        // Handle MCPB template variables that weren't substituted (user didn't set config)
+        const envSourceDir = process.env.SIGNAL_SOURCE_DIR;
+        const resolvedSourceDir = isValidPath(sourceDir) ? sourceDir :
+            isValidPath(envSourceDir) ? envSourceDir :
+                undefined;
+        this.sourceDir = resolvedSourceDir || getDefaultSignalDir();
     }
     open() {
         if (this.db) {
@@ -107,7 +103,12 @@ export class SignalDatabase {
             throw new Error(`Signal database not found at: ${dbPath}`);
         }
         // Get the encryption key from config.json or provided key
-        const encKey = getEncryptionKey(this.sourceDir, this.key || process.env.SIGNAL_KEY);
+        // Handle MCPB template variables that weren't substituted
+        const envKey = process.env.SIGNAL_KEY;
+        const providedKey = isValidPath(this.key) ? this.key :
+            isValidPath(envKey) ? envKey :
+                undefined;
+        const encKey = getEncryptionKey(this.sourceDir, providedKey);
         if (!encKey) {
             throw new Error(`Could not find Signal encryption key. ` +
                 `Make sure config.json exists in ${this.sourceDir} or provide the key manually.`);

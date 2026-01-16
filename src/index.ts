@@ -10,11 +10,24 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { SignalDatabase } from "./signal-db.js";
 
+// Configuration
+const SERVER_NAME = "signal-desktop-mcp";
+const SERVER_VERSION = "0.1.0";
+
+// Logging utilities
+function log(level: "INFO" | "DEBUG" | "ERROR" | "WARN", message: string, data?: object): void {
+  const timestamp = new Date().toISOString();
+  const logMessage = data
+    ? `[${timestamp}] [${level}] ${message}: ${JSON.stringify(data)}`
+    : `[${timestamp}] [${level}] ${message}`;
+  console.error(logMessage);
+}
+
 // Create the MCP server
 const server = new Server(
   {
-    name: "signal-mcp-server",
-    version: "0.1.0",
+    name: SERVER_NAME,
+    version: SERVER_VERSION,
   },
   {
     capabilities: {
@@ -24,169 +37,106 @@ const server = new Server(
   }
 );
 
-// Define the tools
+// Tool definitions with complete schemas
+const TOOLS = [
+  {
+    name: "signal_list_chats",
+    description:
+      "List all Signal chats with their details including contact names, phone numbers, and message counts. Returns an array of chat objects sorted by activity.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        include_empty: {
+          type: "boolean",
+          description: "Include chats with no messages (default: false)",
+          default: false,
+        },
+      },
+    },
+  },
+  {
+    name: "signal_get_chat_messages",
+    description:
+      "Retrieve messages from a specific Signal chat by contact name or group name. Supports pagination for large conversations.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        chat_name: {
+          type: "string",
+          description: "The name of the chat (contact name or group name) to retrieve messages from",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of messages to return (default: 50)",
+          default: 50,
+        },
+        offset: {
+          type: "number",
+          description: "Number of messages to skip for pagination (default: 0)",
+          default: 0,
+        },
+      },
+      required: ["chat_name"],
+    },
+  },
+  {
+    name: "signal_search_chat",
+    description:
+      "Search for specific text within messages in a Signal chat. Returns matching messages with context.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        chat_name: {
+          type: "string",
+          description: "The name of the chat to search within",
+        },
+        query: {
+          type: "string",
+          description: "The text to search for in messages (case-insensitive)",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of matching messages to return (default: 20)",
+          default: 20,
+        },
+      },
+      required: ["chat_name", "query"],
+    },
+  },
+];
+
+// Register tools handler
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "signal_list_chats",
-        description:
-          "List all Signal chats with their details including contact names, numbers, and message counts",
-        inputSchema: {
-          type: "object" as const,
-          properties: {
-            source_dir: {
-              type: "string",
-              description: "Path to the Signal data directory (optional)",
-            },
-            password: {
-              type: "string",
-              description: "Password for encrypted data, if applicable",
-            },
-            key: {
-              type: "string",
-              description: "Key for encrypted data, if applicable",
-            },
-            chats: {
-              type: "string",
-              description: "Comma-separated list of chat IDs to filter",
-            },
-            include_empty: {
-              type: "boolean",
-              description: "Whether to include empty chats",
-              default: false,
-            },
-            include_disappearing: {
-              type: "boolean",
-              description: "Whether to include disappearing messages",
-              default: true,
-            },
-          },
-        },
-      },
-      {
-        name: "signal_get_chat_messages",
-        description:
-          "Get Signal messages from a specific chat by name with pagination support",
-        inputSchema: {
-          type: "object" as const,
-          properties: {
-            chat_name: {
-              type: "string",
-              description: "The name of the chat to retrieve messages from",
-            },
-            limit: {
-              type: "number",
-              description: "Maximum number of messages to return",
-            },
-            offset: {
-              type: "number",
-              description: "Number of messages to skip before starting to collect results",
-              default: 0,
-            },
-            source_dir: {
-              type: "string",
-              description: "Path to the Signal data directory (optional)",
-            },
-            password: {
-              type: "string",
-              description: "Password for encrypted data, if applicable",
-            },
-            key: {
-              type: "string",
-              description: "Key for encrypted data, if applicable",
-            },
-            chats: {
-              type: "string",
-              description: "Comma-separated list of chat IDs to filter",
-            },
-            include_empty: {
-              type: "boolean",
-              description: "Whether to include empty chats",
-              default: false,
-            },
-            include_disappearing: {
-              type: "boolean",
-              description: "Whether to include disappearing messages",
-              default: true,
-            },
-          },
-          required: ["chat_name"],
-        },
-      },
-      {
-        name: "signal_search_chat",
-        description: "Search for specific text within a Signal chat",
-        inputSchema: {
-          type: "object" as const,
-          properties: {
-            chat_name: {
-              type: "string",
-              description: "The name of the chat to search within",
-            },
-            query: {
-              type: "string",
-              description: "The text to search for in messages",
-            },
-            limit: {
-              type: "number",
-              description: "Maximum number of matching messages to return",
-            },
-            source_dir: {
-              type: "string",
-              description: "Path to the Signal data directory (optional)",
-            },
-            password: {
-              type: "string",
-              description: "Password for encrypted data, if applicable",
-            },
-            key: {
-              type: "string",
-              description: "Key for encrypted data, if applicable",
-            },
-            chats: {
-              type: "string",
-              description: "Comma-separated list of chat IDs to filter",
-            },
-            include_empty: {
-              type: "boolean",
-              description: "Whether to include empty chats",
-              default: false,
-            },
-            include_disappearing: {
-              type: "boolean",
-              description: "Whether to include disappearing messages",
-              default: true,
-            },
-          },
-          required: ["chat_name", "query"],
-        },
-      },
-    ],
-  };
+  log("DEBUG", "Listing available tools");
+  return { tools: TOOLS };
 });
 
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  log("INFO", `Tool call received: ${name}`, { arguments: args });
 
   try {
-    // Create a new database connection with any provided overrides
-    const db = new SignalDatabase(
-      (args?.source_dir as string) || process.env.SIGNAL_SOURCE_DIR,
-      (args?.password as string) || process.env.SIGNAL_PASSWORD,
-      (args?.key as string) || process.env.SIGNAL_KEY
-    );
+    // Create database connection
+    const sourceDir = process.env.SIGNAL_SOURCE_DIR || undefined;
+    const key = process.env.SIGNAL_KEY || undefined;
+
+    log("DEBUG", "Creating database connection", {
+      sourceDir: sourceDir || "(auto-detect)",
+      keyProvided: !!key,
+    });
+
+    const db = new SignalDatabase(sourceDir, undefined, key);
 
     try {
       switch (name) {
         case "signal_list_chats": {
+          log("DEBUG", "Listing chats");
           const chats = db.listChats({
-            chats: args?.chats as string,
-            includeEmpty: args?.include_empty as boolean,
-            includeDisappearing: args?.include_disappearing as boolean,
+            includeEmpty: (args?.include_empty as boolean) ?? false,
           });
 
+          log("INFO", `Found ${chats.length} chats`);
           return {
             content: [
               {
@@ -203,14 +153,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             throw new Error("chat_name is required");
           }
 
-          const messages = db.getChatMessages(chatName, {
-            limit: args?.limit as number,
-            offset: args?.offset as number,
-            chats: args?.chats as string,
-            includeEmpty: args?.include_empty as boolean,
-            includeDisappearing: args?.include_disappearing as boolean,
-          });
+          const limit = (args?.limit as number) ?? 50;
+          const offset = (args?.offset as number) ?? 0;
 
+          log("DEBUG", `Getting messages for chat: ${chatName}`, { limit, offset });
+          const messages = db.getChatMessages(chatName, { limit, offset });
+
+          log("INFO", `Retrieved ${messages.length} messages from "${chatName}"`);
           return {
             content: [
               {
@@ -232,13 +181,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             throw new Error("query is required");
           }
 
-          const messages = db.searchChat(chatName, query, {
-            limit: args?.limit as number,
-            chats: args?.chats as string,
-            includeEmpty: args?.include_empty as boolean,
-            includeDisappearing: args?.include_disappearing as boolean,
-          });
+          const limit = (args?.limit as number) ?? 20;
 
+          log("DEBUG", `Searching chat "${chatName}" for: ${query}`, { limit });
+          const messages = db.searchChat(chatName, query, { limit });
+
+          log("INFO", `Found ${messages.length} matching messages in "${chatName}"`);
           return {
             content: [
               {
@@ -254,13 +202,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     } finally {
       db.close();
+      log("DEBUG", "Database connection closed");
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log("ERROR", `Tool ${name} failed`, { error: errorMessage });
     return {
       content: [
         {
           type: "text" as const,
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          text: `Error: ${errorMessage}`,
         },
       ],
       isError: true,
@@ -268,69 +219,61 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Define the prompts
-server.setRequestHandler(ListPromptsRequestSchema, async () => {
-  return {
-    prompts: [
+// Prompt definitions
+const PROMPTS = [
+  {
+    name: "signal_summarize_chat",
+    description: "Generate a summary of recent messages in a Signal chat",
+    arguments: [
       {
-        name: "signal_summarize_chat_prompt",
-        description: "Generate a summary prompt for recent messages in a specific chat",
-        arguments: [
-          {
-            name: "chat_name",
-            description: "The name of the chat to summarize",
-            required: true,
-          },
-        ],
-      },
-      {
-        name: "signal_chat_topic_prompt",
-        description: "Generate a prompt to analyze discussion topics in a chat",
-        arguments: [
-          {
-            name: "chat_name",
-            description: "The name of the chat to analyze",
-            required: true,
-          },
-        ],
-      },
-      {
-        name: "signal_chat_sentiment_prompt",
-        description: "Generate a prompt to analyze message sentiment in a chat",
-        arguments: [
-          {
-            name: "chat_name",
-            description: "The name of the chat to analyze",
-            required: true,
-          },
-        ],
-      },
-      {
-        name: "signal_search_chat_prompt",
-        description: "Generate a search prompt for finding specific text in a chat",
-        arguments: [
-          {
-            name: "chat_name",
-            description: "The name of the chat to search",
-            required: true,
-          },
-          {
-            name: "query",
-            description: "The text to search for",
-            required: true,
-          },
-        ],
+        name: "chat_name",
+        description: "The name of the chat to summarize",
+        required: true,
       },
     ],
-  };
+  },
+  {
+    name: "signal_chat_topics",
+    description: "Analyze and list the main topics discussed in a Signal chat",
+    arguments: [
+      {
+        name: "chat_name",
+        description: "The name of the chat to analyze",
+        required: true,
+      },
+    ],
+  },
+  {
+    name: "signal_search_and_summarize",
+    description: "Search for a topic in a chat and summarize the relevant messages",
+    arguments: [
+      {
+        name: "chat_name",
+        description: "The name of the chat to search",
+        required: true,
+      },
+      {
+        name: "query",
+        description: "The topic or text to search for",
+        required: true,
+      },
+    ],
+  },
+];
+
+// Register prompts handler
+server.setRequestHandler(ListPromptsRequestSchema, async () => {
+  log("DEBUG", "Listing available prompts");
+  return { prompts: PROMPTS };
 });
 
 // Handle prompt requests
 server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  log("DEBUG", `Prompt requested: ${name}`, { arguments: args });
 
   switch (name) {
-    case "signal_summarize_chat_prompt": {
+    case "signal_summarize_chat": {
       const chatName = args?.chat_name;
       if (!chatName) {
         throw new Error("chat_name is required");
@@ -341,14 +284,14 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `Summarize the recent messages in the Signal chat named '${chatName}'.`,
+              text: `Please use the signal_get_chat_messages tool to retrieve recent messages from the Signal chat "${chatName}", then provide a concise summary of the conversation topics, key points, and any action items mentioned.`,
             },
           },
         ],
       };
     }
 
-    case "signal_chat_topic_prompt": {
+    case "signal_chat_topics": {
       const chatName = args?.chat_name;
       if (!chatName) {
         throw new Error("chat_name is required");
@@ -359,32 +302,14 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `What are the topics of discussion in the Signal chat named '${chatName}'?`,
+              text: `Please use the signal_get_chat_messages tool to retrieve messages from the Signal chat "${chatName}", then analyze and list the main topics that have been discussed. Group related messages together and provide a brief description of each topic.`,
             },
           },
         ],
       };
     }
 
-    case "signal_chat_sentiment_prompt": {
-      const chatName = args?.chat_name;
-      if (!chatName) {
-        throw new Error("chat_name is required");
-      }
-      return {
-        messages: [
-          {
-            role: "user" as const,
-            content: {
-              type: "text" as const,
-              text: `Analyze the sentiment of messages in the Signal chat named '${chatName}'.`,
-            },
-          },
-        ],
-      };
-    }
-
-    case "signal_search_chat_prompt": {
+    case "signal_search_and_summarize": {
       const chatName = args?.chat_name;
       const query = args?.query;
       if (!chatName) {
@@ -399,7 +324,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `Search for the text '${query}' in the Signal chat named '${chatName}'.`,
+              text: `Please use the signal_search_chat tool to search for "${query}" in the Signal chat "${chatName}", then summarize the relevant messages and any conclusions or decisions that were made about this topic.`,
             },
           },
         ],
@@ -412,13 +337,26 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
 });
 
 // Start the server
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Signal MCP Server started");
+async function main(): Promise<void> {
+  log("INFO", "Signal Desktop MCP Server starting...");
+  log("INFO", `Node.js version: ${process.version}`);
+  log("INFO", `Platform: ${process.platform}`);
+
+  try {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    log("INFO", "Signal Desktop MCP Server started and ready for connections");
+  } catch (error) {
+    log("ERROR", "Failed to start server", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  log("ERROR", "Fatal error", {
+    error: error instanceof Error ? error.message : String(error),
+  });
   process.exit(1);
 });
